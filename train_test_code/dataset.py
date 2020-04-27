@@ -93,7 +93,7 @@ class RandomDataAugDataSet(torch.utils.data.Dataset):
 
         s = None
         if self.segs is not None:
-            s = self.segs[i,:,:,:]
+            cur_seg = self.segs[i,:,:,:]
 
         cur_lands = None
         if self.lands is not None:
@@ -201,28 +201,32 @@ class RandomDataAugDataSet(torch.utils.data.Dataset):
 
                 p = (p * (p_max - p_min)) + p_min
 
-                if s is not None:
-                    orig_s_shape = s.shape
+                if cur_seg is not None:
+                    orig_s_shape = cur_seg.shape
                     if self.pad_data_for_affine:
                         pad1 = int(math.ceil(orig_s_shape[1] / 2.0))
                         pad2 = int(math.ceil(orig_s_shape[2] / 2.0))
-                        s = torch.from_numpy(np.pad(s.numpy(),
+                        cur_seg = torch.from_numpy(np.pad(cur_seg.numpy(),
                                                     ((0,0), (pad1,pad1), (pad2,pad2)),
                                                     'reflect'))
                     
                     # warp each class separately, I don't want any wacky color
                     # spaces assumed by PIL
-                    for c in range(s.shape[0]):
-                        s[c,:,:] = TF.to_tensor(TF.affine(TF.to_pil_image(s[c,:,:]),
+                    for c in range(cur_seg.shape[0]):
+                        cur_seg[c,:,:] = TF.to_tensor(TF.affine(TF.to_pil_image(cur_seg[c,:,:]),
                                                           rot_ang,
                                                           (trans_x, trans_y),
                                                           scale_factor,
                                                           shear))
+                    
+                    # renormalize after warping
+                    cur_seg /= torch.sum(cur_seg, dim=0)
+
                     if self.pad_data_for_affine:
-                        s = center_crop(s, orig_s_shape)
+                        cur_seg = center_crop(cur_seg, orig_s_shape)
                 
                 if cur_lands is not None:
-                    shape_for_center_of_rot = s.shape if s is not None else p.shape
+                    shape_for_center_of_rot = cur_seg.shape if cur_seg is not None else p.shape
 
                     center_of_rot = ((shape_for_center_of_rot[-2] / 2.0) + 0.5,
                                      (shape_for_center_of_rot[-1] / 2.0) + 0.5)
@@ -235,7 +239,7 @@ class RandomDataAugDataSet(torch.utils.data.Dataset):
                         if (not math.isinf(cur_land[0])) and (not math.isinf(cur_land[1])):
                             tmp_pt = A * np.asmatrix(np.pad(cur_land.numpy(), (0,1), mode='constant', constant_values=1).reshape(3,1))
                             xform_l = torch.from_numpy(np.squeeze(np.asarray(tmp_pt))[0:2])
-                            if (s is not None) and \
+                            if (cur_seg is not None) and \
                                ((xform_l[0] < 0) or (xform_l[0] > (orig_s_shape[1] - 1)) or \
                                 (xform_l[1] < 0) or (xform_l[1] < (orig_s_shape[0] - 1))):
                                 xform_l[0] = math.inf
@@ -287,19 +291,19 @@ class RandomDataAugDataSet(torch.utils.data.Dataset):
 
         h = None
         if self.include_heat_map:
-            assert(s is not None)
+            assert(cur_seg is not None)
             assert(cur_lands is not None)
 
             num_lands = cur_lands.shape[-1]
 
-            h = torch.zeros(num_lands, 1, s.shape[-2], s.shape[-1])
+            h = torch.zeros(num_lands, 1, cur_seg.shape[-2], cur_seg.shape[-1])
 
             # "FH-l", "FH-r", "GSN-l", "GSN-r", "IOF-l", "IOF-r", "MOF-l", "MOF-r", "SPS-l", "SPS-r", "IPS-l", "IPS-r"
             #sigma_lut = [ 2.5, 2.5, 7.5, 7.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5]
             sigma_lut = torch.full([num_lands], 2.5)
 
-            (Y,X) = torch.meshgrid(torch.arange(0, s.shape[-2]),
-                                   torch.arange(0, s.shape[-1]))
+            (Y,X) = torch.meshgrid(torch.arange(0, cur_seg.shape[-2]),
+                                   torch.arange(0, cur_seg.shape[-1]))
             Y = Y.float()
             X = X.float()
 
@@ -317,7 +321,7 @@ class RandomDataAugDataSet(torch.utils.data.Dataset):
                     h[land_idx,0,:,:] = pdf
             #assert(torch.all(torch.isfinite(h)))
 
-        return (p,s,cur_lands,h)
+        return (p,cur_seg,cur_lands,h)
 
 def get_orig_img_shape(h5_file_path, pat_ind):
     f = h5.File(h5_file_path, 'r')
@@ -358,17 +362,22 @@ def get_land_names_from_dataset(h5_file_path):
 
 
 def get_dataset(h5_file_path, pat_inds, num_classes,
-                pad_img_dim=0, no_seg=False,
+                pad_img_dim=0,
+                no_seg=False,
                 minmax=None,
                 data_aug=False,
                 train_valid_split=None,
                 train_valid_idx=None,
-                dup_data_w_left_right_flip=False):
+                dup_data_w_left_right_flip=False,
+                multi_class_labels=False):
     # classes:
     # 0 --> BG
-    # 1 --> Pelvis
-    # 2 --> Left Femur
-    # 3 --> Right Femur
+    # 1 --> Left Hemipelvis
+    # 2 --> Right Hemiplevis
+    # 3 --> Vertebrae
+    # 4 --> Upper Sacrum
+    # 5 --> Left Femur
+    # 6 --> Right Femur
         
     need_to_scale_data   = False
     need_to_find_min_max = False
@@ -434,14 +443,19 @@ def get_dataset(h5_file_path, pat_inds, num_classes,
         else:
             all_projs = torch.cat((all_projs, cur_projs))
 
-        cur_segs = torch.from_numpy(pat_g['segs'][:])
-        assert(len(cur_segs.shape) == 3)
+        if multi_class_labels:
+            cur_segs      = None
+            cur_segs_dice = torch.from_numpy(pat_g['multi-segs'][:])
+            assert(len(cur_segs_dice.shape) == 4)
+        else:
+            cur_segs = torch.from_numpy(pat_g['segs'][:])
+            assert(len(cur_segs.shape) == 3)
             
-        cur_segs_dice = torch.zeros(cur_segs.shape[0], num_classes, cur_segs.shape[1], cur_segs.shape[2])
-        
-        for i in range(cur_segs.shape[0]):
-            for c in range(num_classes):
-                cur_segs_dice[i,c,:,:] = cur_segs[i,:,:] == c
+            cur_segs_dice = torch.zeros(cur_segs.shape[0], num_classes, cur_segs.shape[1], cur_segs.shape[2])
+            
+            for i in range(cur_segs.shape[0]):
+                for c in range(num_classes):
+                    cur_segs_dice[i,c,:,:] = cur_segs[i,:,:] == c
 
         if all_segs is None:
             all_segs = cur_segs_dice.clone().detach()

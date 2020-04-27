@@ -33,6 +33,7 @@ if __name__ == '__main__':
     parser.add_argument('--train-pats', help='comma delimited list of patient IDs used for training', type=str)
     parser.add_argument('--valid-pats', help='comma delimited list of patient IDs used for validation', type=str)
     
+    parser.add_argument('--multi-class-seg', help='Use overlapping multiple-class segmentation', action='store_true')
     parser.add_argument('--num-classes', help='The number of label classes to be identified', type=int)
     
     parser.add_argument('--batch-size', help='Number of images each minibatch', type=int, default=1)
@@ -117,6 +118,8 @@ if __name__ == '__main__':
     save_best_valid = not args.no_save_best_valid
 
     num_classes = args.num_classes
+    
+    do_multi_class = args.multi_class_seg
 
     batch_size = args.batch_size
 
@@ -219,7 +222,9 @@ if __name__ == '__main__':
         use_dice_valid      = prev_state['use-dice-valid']
         unet_use_res        = prev_state['unet-use-res']
         unet_block_depth    = prev_state['unet-block-depth']
+        do_multi_class      = prev_state['do-multi-class']
 
+        print('         do multi-class: {}'.format(do_multi_class))
         print('           num. classes: {}'.format(num_classes))
         print('            optim. type: {}'.format(optim_type))
         print('                  depth: {}'.format(unet_num_lvls))
@@ -286,11 +291,14 @@ if __name__ == '__main__':
     lrs_plateau = lr_sched_meth == 'plateau'
 
     print('initializing training dataset/dataloader')
-    train_ds = get_dataset(data_file_path, train_pats, num_classes=num_classes,
+    train_ds = get_dataset(data_file_path, train_pats,
+                           num_classes=num_classes,
                            pad_img_dim=proj_unet_dim,
-                           data_aug=data_aug, train_valid_split=train_valid_split,
+                           data_aug=data_aug,
+                           train_valid_split=train_valid_split,
                            train_valid_idx=(train_idx,valid_idx),
-                           dup_data_w_left_right_flip=False)
+                           dup_data_w_left_right_flip=False,
+                           multi_class_labels=do_multi_class)
     if train_valid_split >= 0:
         assert(type(train_ds) is tuple)
         (train_ds, valid_ds, train_idx, valid_idx) = train_ds
@@ -488,6 +496,7 @@ if __name__ == '__main__':
                          'best-valid-loss'      : best_valid_loss,
                          'save-best-valid'      : save_best_valid,
                          'num-classes'          : num_classes,
+                         'do-multi-class'       : do_multi_class,
                          'depth'                : unet_num_lvls,
                          'init-feats-exp'       : unet_init_feats_exp,
                          'batch-norm'           : unet_batch_norm,
