@@ -12,6 +12,7 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import sys
+import argparse
 
 import h5py as h5
 
@@ -26,10 +27,18 @@ import torchvision.transforms.functional as TF
 # main function
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print('ERROR: supply path to HDF5 data file as first argument')
-        sys.exit(1)
-   
+    parser = argparse.ArgumentParser(description='Overlay ground truth annotations from full-resolution data file.',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('input_data_file_path', help='Path to full-res data file', type=str)
+    parser.add_argument('--multi-class-seg', help='Use overlapping multiple-class segmentation', action='store_true')
+    parser.add_argument('-a', '--alpha', help='Alpha blending coefficient of non-background label overlay. 1.0 --> non-background labels are opaque, 0.0 --> non-background labels are invisible.', type=float, default=0.35)
+
+    args = parser.parse_args()
+
+    do_multi_class = args.multi_class_seg
+
+    alpha = args.alpha
+    
     # Since the projections are 1536x1536, a tiled image of ~100 projections
     # may be excessively large, downsample in this case
     #overlay_ds_factor = 1.0   # no downsampling
@@ -96,8 +105,12 @@ if __name__ == '__main__':
                 cur_proj_max = cur_proj.max()
                 cur_proj = (cur_proj - cur_proj_min) / (cur_proj_max - cur_proj_min)
                 
-                # read current ground truth 2D segmentation - dtype is uint8
-                cur_seg = torch.from_numpy(cur_proj_g['gt-seg/pixels'][:])
+                if do_multi_class:
+                    # read current ground truth multi-class segmentation weights
+                    cur_seg = torch.from_numpy(cur_proj_g['gt-multi-seg'][:])
+                else:
+                    # read current ground truth 2D segmentation - dtype is uint8
+                    cur_seg = torch.from_numpy(cur_proj_g['gt-seg/pixels'][:])
                
                 # read the ground truth 2D landmarks, each landmark is stored
                 # as a separate 2D vector in units of 2D pixels
@@ -130,7 +143,12 @@ if __name__ == '__main__':
                 if cur_proj_g['rot-180-for-up'][()]:
                     # rotation of 180 deg. is equivalent to flipping columns, then flipping rows
                     cur_proj = torch.flip(torch.flip(cur_proj, [0]), [1])
-                    cur_seg  = torch.flip(torch.flip(cur_seg,  [0]), [1])
+
+                    if do_multi_class:
+                        for i in range(cur_seg.shape[0]):
+                            cur_seg[i,:,:] = torch.flip(torch.flip(cur_seg[i,:,:],  [0]), [1])
+                    else:
+                        cur_seg  = torch.flip(torch.flip(cur_seg,  [0]), [1])
                     
                     for cur_land in cur_lands:
                         cur_land[0] = proj_num_cols - 1 - cur_land[0]
@@ -153,7 +171,6 @@ if __name__ == '__main__':
                 # alpha blending for segmentation overlay of pixels that are not background
                 # 0 --> seg. not visible, only projection shows
                 # 1 --> only seg. shows, proj. not visible in seg. regions
-                alpha = 0.35
 
                 label_colors = [ [0.0, 1.0, 0.0],  # green
                                  [1.0, 0.0, 0.0],  # red
@@ -161,18 +178,32 @@ if __name__ == '__main__':
                                  [1.0, 1.0, 0.0],  # yellow
                                  [0.0, 1.0, 1.0],  # cyan
                                  [1.0, 0.5, 0.0]]  # orange
-                
+               
                 # do alpha blending for each label
-                for l in range(1,7):
-                    cur_label_idx = cur_seg == l
-
-                    cur_label_color = label_colors[l - 1]
-
+                
+                if do_multi_class:
                     # loop over RGB
                     for c in range(3):
-                        cur_proj_c = cur_proj[c,:,:]
+                        cur_proj_c = cur_proj[c,:,:].clone()
+
+                        cur_proj_c *= 1 - alpha
+                        cur_proj_c += alpha * cur_seg[0,:,:] * cur_proj[c,:,:]
+
+                        for l in range(1,7):
+                            cur_proj_c += (alpha * label_colors[l-1][c]) * cur_seg[l,:,:]
+
+                        cur_proj[c,:,:] = cur_proj_c
+                else:
+                    for l in range(1,7):
+                        cur_label_color = label_colors[l - 1]
                         
-                        cur_proj_c[cur_label_idx] = ((1 - alpha) * cur_proj_c[cur_label_idx]) + (alpha * cur_label_color[c])
+                        cur_label_idx = cur_seg == l
+
+                        # loop over RGB
+                        for c in range(3):
+                            cur_proj_c = cur_proj[c,:,:]
+                            
+                            cur_proj_c[cur_label_idx] = ((1 - alpha) * cur_proj_c[cur_label_idx]) + (alpha * cur_label_color[c])
 
                 # Need a drawing context to overlay the landmarks
                 pil = TF.to_pil_image(cur_proj)
