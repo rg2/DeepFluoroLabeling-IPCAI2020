@@ -28,7 +28,7 @@ if __name__ == '__main__':
     parser.add_argument('seg_group', help='Path within H5 file of estimated heatmaps', type=str)
     parser.add_argument('pat_ind', help='patient index', type=int)
     parser.add_argument('proj_ind', help='Projection index, negative value implies all projections', type=int)
-    parser.add_argument('land_ind', help='landmark index', type=int)
+    parser.add_argument('land_ind', help='landmark index, negative value implies all landmarks. Landmark overlays are tiled into one output image per projection', type=int)
     parser.add_argument('out_overlay', help='Path to output overlay image, should be a pattern for multiple projs (include a {})', type=str)
     
     parser.add_argument('--num-classes', help='number of classes in segmentation', type=int, default=7)
@@ -52,6 +52,7 @@ if __name__ == '__main__':
     all_projs = proj < 0
     
     land_idx = args.land_ind
+    all_lands = land_idx < 0
 
     num_seg_classes = args.num_classes
 
@@ -60,9 +61,21 @@ if __name__ == '__main__':
     do_all_heats_max = args.all_max
 
     ds = get_dataset(ds_path, [pat_ind], num_classes=num_seg_classes)
+        
+    f = h5.File(seg_file_path, 'r')
+    est_heats = torch.from_numpy(f[seg_g_path][:])
+    f.close()
+    
+    heat_base_color = [0.0, 1.0, 0.0]
 
     proj_inds_to_do = range(len(ds)) if all_projs else [proj]
-    
+   
+    land_inds_to_do = range(est_heats.shape[1]) if all_lands else [land_idx]
+        
+    tile_overlay = None
+    if all_lands:
+        tile_overlay = torch.zeros(len(land_inds_to_do), 3, est_heats.shape[-2], est_heats.shape[-1])
+
     for proj in proj_inds_to_do:
         print('processing projection: {:03d}....'.format(proj))
 
@@ -72,42 +85,42 @@ if __name__ == '__main__':
         img_max = img.max()
         img = (img - img_min) / (img_max - img_min)
 
-
         pil = TF.to_pil_image(img)
         pil = pil.convert('RGB')
 
         img = TF.to_tensor(pil)
-        
-        f = h5.File(seg_file_path, 'r')
-        est_heats = torch.from_numpy(f[seg_g_path][:])
-        f.close()
+       
+        for land_idx in land_inds_to_do:
+            heats_max = None
 
-        heat_base_color = [0.0, 1.0, 0.0]
+            heat = est_heats[proj,land_idx,:,:]
 
-        heat = est_heats[proj,land_idx,:,:]
+            if do_min_max_norm:
+                heat_min = heat.min()
+                heat_max = heat.max()
+                heat_min_minus_max = heat_max - heat_min
+                
+                heat = (heat - heat_min) / heat_min_minus_max
+            elif do_exp_max:
+                heat_map_sigma = 2.5
+                heat *= 2 * math.pi * heat_map_sigma * heat_map_sigma
+            elif do_all_heats_max:
+                if heats_max is None:
+                    heats_max = est_heats[proj,:,:,:].max()
+                
+                heat_min  = heat.min()
 
-        if do_min_max_norm:
-            heat_min = heat.min()
-            heat_max = heat.max()
-            heat_min_minus_max = heat_max - heat_min
-            
-            heat = (heat - heat_min) / heat_min_minus_max
-        elif do_exp_max:
-            heat_map_sigma = 2.5
-            heat *= 2 * math.pi * heat_map_sigma * heat_map_sigma
-        elif do_all_heats_max:
-            heats_max = est_heats[proj,:,:,:].max()
-            heat_min  = heat.min()
+                heat = (heat - heat_min) / heats_max
+            # else no normalization
 
-            heat = (heat - heat_min) / heats_max
-        # else no normalization
+            dst_img = tile_overlay[land_idx,:,:,:] if all_lands else img
 
-        for c in range(3):
-            img[c,:,:] = ((1 - heat) * img[c,:,:]) + (heat * heat_base_color[c])
+            for c in range(3):
+                dst_img[c,:,:] = ((1 - heat) * img[c,:,:]) + (heat * heat_base_color[c])
         
         cur_out_img_path = out_img_path
         if all_projs:
             cur_out_img_path = out_img_path.format('{:03d}'.format(proj))
 
-        torchvision.utils.save_image(img, cur_out_img_path, normalize=False)
+        torchvision.utils.save_image(tile_overlay if all_lands else img, cur_out_img_path, normalize=False)
 
