@@ -33,6 +33,10 @@ if __name__ == '__main__':
     
     parser.add_argument('--num-classes', help='number of classes in segmentation', type=int, default=7)
 
+    parser.add_argument('--min-max', help='Min/Max normalize each heatmap to [0,1] for display', action='store_true')
+    parser.add_argument('--exp-max', help='Max scale according to the expected peak value of the 2D Gaussian', action='store_true')
+    parser.add_argument('--all-max', help='Max scale using maxium from all heatmaps of projection, shift to zero using individual heatmap minima.', action='store_true')
+
     args = parser.parse_args()
 
     ds_path = args.ds_path
@@ -49,6 +53,10 @@ if __name__ == '__main__':
     land_idx = args.land_ind
 
     num_seg_classes = args.num_classes
+
+    do_min_max_norm  = args.min_max
+    do_exp_max       = args.exp_max
+    do_all_heats_max = args.all_max
 
     ds = get_dataset(ds_path, [pat_ind], num_classes=num_seg_classes)
 
@@ -71,14 +79,22 @@ if __name__ == '__main__':
     heat_base_color = [0.0, 1.0, 0.0]
 
     heat = est_heats[proj,land_idx,:,:]
-    
-    heat_min = heat.min()
-    heat_max = heat.max()
-    heat_min_minus_max = heat_max - heat_min
 
-    heat = heat - heat_min
-    if heat_min_minus_max > 1.0e-3:
-        heat /= heat_min_minus_max
+    if do_min_max_norm:
+        heat_min = heat.min()
+        heat_max = heat.max()
+        heat_min_minus_max = heat_max - heat_min
+        
+        heat = (heat - heat_min) / heat_min_minus_max
+    elif do_exp_max:
+        heat_map_sigma = 2.5
+        heat *= 2 * math.pi * heat_map_sigma * heat_map_sigma
+    elif do_all_heats_max:
+        heats_max = est_heats[proj,:,:,:].max()
+        heat_min  = heat.min()
+
+        heat = (heat - heat_min) / heats_max
+    # else no normalization
 
     for c in range(3):
         img[c,:,:] = ((1 - heat) * img[c,:,:]) + (heat * heat_base_color[c])
