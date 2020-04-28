@@ -268,17 +268,19 @@ def seg_dataset(ds, net, h5_f, dev=None, num_lands=0):
         assert(num_items == len(ds))
 
 
-def seg_dataset_ensemble(ds, nets, h5_f, dev=None, num_lands=0, times=None):
+def seg_dataset_ensemble(ds, nets, h5_f, dev=None, num_lands=0, times=None, multi_class_labels=False):
     num_nets = len(nets)
 
     orig_img_shape = ds.rob_orig_img_shape
     
     dl = DataLoader(ds, batch_size=1, shuffle=False)
-   
-    dst_ds = h5_f.create_dataset('nn-segs', (len(ds), *orig_img_shape),
-                                 dtype='u1',
-                                 chunks=(1, *orig_img_shape),
-                                 compression="gzip", compression_opts=9)
+ 
+    dst_ds = None
+    if not multi_class_labels:
+        dst_ds = h5_f.create_dataset('nn-segs', (len(ds), *orig_img_shape),
+                                     dtype='u1',
+                                     chunks=(1, *orig_img_shape),
+                                     compression="gzip", compression_opts=9)
     
     dst_heats_ds = None
 
@@ -323,10 +325,12 @@ def seg_dataset_ensemble(ds, nets, h5_f, dev=None, num_lands=0, times=None):
                 if dst_heats_ds is not None:
                     pred_heats = center_crop(pred_heats, orig_img_shape)
                     
-                    pred_heats_min = pred_heats.min().item()
-                    pred_heats_max = pred_heats.max().item()
-                    
-                    pred_heats = (pred_heats - pred_heats_min) / (pred_heats_max - pred_heats_min)
+                    for land_idx in range(pred_heats.shape[1]):
+                        pred_heats_min = pred_heats[0,land_idx,:,:].min().item()
+                        pred_heats_max = pred_heats[0,land_idx,:,:].max().item()
+                        #pred_heats[0,land_idx,:,:] = (pred_heats[1,land_idx,:,:] - pred_heats_min) / (pred_heats_max - pred_heats_min)
+                        
+                        pred_heats[0,land_idx,:,:] -= pred_heats_min
 
                     if avg_heats is None:
                         avg_heats = pred_heats
@@ -336,15 +340,26 @@ def seg_dataset_ensemble(ds, nets, h5_f, dev=None, num_lands=0, times=None):
             # technically we don't need to do this for the segmentation
             avg_masks /= num_nets
 
-            (_, pred_masks) = torch.max(avg_masks, dim=1)
+            if multi_class_labels:
+                pred_masks = avg_masks
+            else:
+                (_, pred_masks) = torch.max(avg_masks, dim=1)
             
             stop_time = time.time()
 
             if times is not None:
                 times.append(stop_time - start_time)
+            
+            if multi_class_labels and (dst_ds is None):
+                dst_ds = h5_f.create_dataset('nn-segs', (len(ds), avg_masks.shape[1], *orig_img_shape),
+                                             chunks=(1, 1, *orig_img_shape),
+                                             compression="gzip", compression_opts=9)
 
             # write to file
-            dst_ds[i,:,:] = pred_masks.view(orig_img_shape).cpu().numpy()
+            if multi_class_labels:
+                dst_ds[i,:,:,:] = pred_masks.view((pred_masks.shape[1], *orig_img_shape)).cpu().numpy()
+            else:
+                dst_ds[i,:,:] = pred_masks.view(orig_img_shape).cpu().numpy()
             
             if dst_heats_ds is not None:
                 avg_heats /= num_nets
