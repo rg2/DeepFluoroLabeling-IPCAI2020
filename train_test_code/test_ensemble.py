@@ -30,6 +30,8 @@ if __name__ == '__main__':
     # output data file is second positional arg
     parser.add_argument('output_data_file_path', help='Path to the output datafile containing segmentations', type=str)
     
+    parser.add_argument('--multi-class-seg', help='Use overlapping multiple-class segmentation', action='store_true')
+    
     # network files used for ensemble
     parser.add_argument('--nets', help='Paths to the networks used to perform segmentation - specify this after the positional arguments', type=str, nargs='+')
     
@@ -41,6 +43,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    do_multi_class = args.multi_class_seg
+    
     network_paths = args.nets
 
     src_data_file_path = args.input_data_file_path
@@ -119,7 +123,7 @@ if __name__ == '__main__':
 
     print('initializing testing dataset')
     test_ds = get_dataset(src_data_file_path, test_pats, num_classes=num_classes,
-                          pad_img_dim=proj_unet_dim, no_seg=True)
+                          pad_img_dim=proj_unet_dim, no_seg=True, multi_class_labels=do_multi_class)
     
     print('Length of testing dataset: {}'.format(len(test_ds)))
 
@@ -137,7 +141,8 @@ if __name__ == '__main__':
     times = []
 
     print('running network on projections')
-    seg_dataset_ensemble(test_ds, nets, f, dev=dev, num_lands=num_lands, times=times)
+    seg_dataset_ensemble(test_ds, nets, f, dev=dev, num_lands=num_lands, times=times,
+                         multi_class_labels=do_multi_class)
 
     print('closing file...')
     f.flush()
