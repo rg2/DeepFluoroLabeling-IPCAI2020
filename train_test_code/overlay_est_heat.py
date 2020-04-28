@@ -27,9 +27,9 @@ if __name__ == '__main__':
     parser.add_argument('seg_file', help='Path to H5 file with estimated segmentations and heatmaps', type=str)
     parser.add_argument('seg_group', help='Path within H5 file of estimated heatmaps', type=str)
     parser.add_argument('pat_ind', help='patient index', type=int)
-    parser.add_argument('proj_ind', help='proj', type=int)
+    parser.add_argument('proj_ind', help='Projection index, negative value implies all projections', type=int)
     parser.add_argument('land_ind', help='landmark index', type=int)
-    parser.add_argument('out_overlay', help='Path to output overlay image', type=str)
+    parser.add_argument('out_overlay', help='Path to output overlay image, should be a pattern for multiple projs (include a {})', type=str)
     
     parser.add_argument('--num-classes', help='number of classes in segmentation', type=int, default=7)
 
@@ -49,6 +49,7 @@ if __name__ == '__main__':
     pat_ind = args.pat_ind
 
     proj = args.proj_ind
+    all_projs = proj < 0
     
     land_idx = args.land_ind
 
@@ -60,46 +61,53 @@ if __name__ == '__main__':
 
     ds = get_dataset(ds_path, [pat_ind], num_classes=num_seg_classes)
 
-    img = ds[proj][0]
-
-    img_min = img.min()
-    img_max = img.max()
-    img = (img - img_min) / (img_max - img_min)
-
-
-    pil = TF.to_pil_image(img)
-    pil = pil.convert('RGB')
-
-    img = TF.to_tensor(pil)
+    proj_inds_to_do = range(len(ds)) if all_projs else [proj]
     
-    f = h5.File(seg_file_path, 'r')
-    est_heats = torch.from_numpy(f[seg_g_path][:])
-    f.close()
+    for proj in proj_inds_to_do:
+        print('processing projection: {:03d}....'.format(proj))
 
-    heat_base_color = [0.0, 1.0, 0.0]
+        img = ds[proj][0]
 
-    heat = est_heats[proj,land_idx,:,:]
+        img_min = img.min()
+        img_max = img.max()
+        img = (img - img_min) / (img_max - img_min)
 
-    if do_min_max_norm:
-        heat_min = heat.min()
-        heat_max = heat.max()
-        heat_min_minus_max = heat_max - heat_min
+
+        pil = TF.to_pil_image(img)
+        pil = pil.convert('RGB')
+
+        img = TF.to_tensor(pil)
         
-        heat = (heat - heat_min) / heat_min_minus_max
-    elif do_exp_max:
-        heat_map_sigma = 2.5
-        heat *= 2 * math.pi * heat_map_sigma * heat_map_sigma
-    elif do_all_heats_max:
-        heats_max = est_heats[proj,:,:,:].max()
-        heat_min  = heat.min()
+        f = h5.File(seg_file_path, 'r')
+        est_heats = torch.from_numpy(f[seg_g_path][:])
+        f.close()
 
-        heat = (heat - heat_min) / heats_max
-    # else no normalization
+        heat_base_color = [0.0, 1.0, 0.0]
 
-    for c in range(3):
-        img[c,:,:] = ((1 - heat) * img[c,:,:]) + (heat * heat_base_color[c])
+        heat = est_heats[proj,land_idx,:,:]
 
-    torchvision.utils.save_image(img, out_img_path, normalize=False)
+        if do_min_max_norm:
+            heat_min = heat.min()
+            heat_max = heat.max()
+            heat_min_minus_max = heat_max - heat_min
+            
+            heat = (heat - heat_min) / heat_min_minus_max
+        elif do_exp_max:
+            heat_map_sigma = 2.5
+            heat *= 2 * math.pi * heat_map_sigma * heat_map_sigma
+        elif do_all_heats_max:
+            heats_max = est_heats[proj,:,:,:].max()
+            heat_min  = heat.min()
 
+            heat = (heat - heat_min) / heats_max
+        # else no normalization
 
+        for c in range(3):
+            img[c,:,:] = ((1 - heat) * img[c,:,:]) + (heat * heat_base_color[c])
+        
+        cur_out_img_path = out_img_path
+        if all_projs:
+            cur_out_img_path = out_img_path.format('{:03d}'.format(proj))
+
+        torchvision.utils.save_image(img, cur_out_img_path, normalize=False)
 
