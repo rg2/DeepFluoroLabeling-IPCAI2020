@@ -456,7 +456,7 @@ def seg_dataset_ensemble(ds, nets, h5_f, dev=None, num_lands=0, times=None, mult
                     
                     for land_idx in range(pred_heats.shape[1]):
                         pred_heats_min = pred_heats[0,land_idx,:,:].min().item()
-                        pred_heats_max = pred_heats[0,land_idx,:,:].max().item()
+                        #pred_heats_max = pred_heats[0,land_idx,:,:].max().item()
                         #pred_heats[0,land_idx,:,:] = (pred_heats[1,land_idx,:,:] - pred_heats_min) / (pred_heats_max - pred_heats_min)
                         
                         pred_heats[0,land_idx,:,:] -= pred_heats_min
