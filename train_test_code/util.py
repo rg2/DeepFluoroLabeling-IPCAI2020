@@ -95,23 +95,32 @@ def est_land_from_heat(heat,
                 if mask_wgt < 0.3:
                     land_ind = None
     
-    if (land_ind is not None) and (local_template is not None):
-        half_rows_template = local_template.shape[0] // 2
-        half_cols_template = local_template.shape[1] // 2
-        heat_pad = torch.from_numpy(np.pad(heat.cpu().numpy(),
-                                    ((half_rows_template, half_rows_template),
-                                     (half_cols_template, half_cols_template)), 'reflect'))
-        # Since this index was first computed in the un-padded image, we do not need to subtract
-        # the padding amount to get the start location in the padded image (it implicitly has -12)
-        start_roi_row = land_ind[0]
-        stop_roi_row  = start_roi_row + (half_rows_template * 2) + 1
-        start_roi_col = land_ind[1]
-        stop_roi_col  = start_roi_col + (half_cols_template * 2) + 1
+    if land_ind is not None:
+        if local_template is not None:
+            if (type(local_template) is str) and (local_template == 'global'):
+                if heat.sum() > 1.0e-6:
+                    global_template = get_gaussian_2d_heatmap(heat.shape[0], heat.shape[1], 2.5, land_ind[0], land_ind[1])
+                    if ncc_2d(global_template, heat) < 0.95:
+                        land_ind = None
+                else:
+                    land_ind = None
+            elif local_template is not None:
+                half_rows_template = local_template.shape[0] // 2
+                half_cols_template = local_template.shape[1] // 2
+                heat_pad = torch.from_numpy(np.pad(heat.cpu().numpy(),
+                                            ((half_rows_template, half_rows_template),
+                                             (half_cols_template, half_cols_template)), 'reflect'))
+                # Since this index was first computed in the un-padded image, we do not need to subtract
+                # the padding amount to get the start location in the padded image (it implicitly has -12)
+                start_roi_row = land_ind[0]
+                stop_roi_row  = start_roi_row + (half_rows_template * 2) + 1
+                start_roi_col = land_ind[1]
+                stop_roi_col  = start_roi_col + (half_cols_template * 2) + 1
 
-        heat_roi = heat_pad[start_roi_row:stop_roi_row, start_roi_col:stop_roi_col]
-        
-        if ncc_2d(local_template, heat_roi) < 0.9:
-            land_ind = None
+                heat_roi = heat_pad[start_roi_row:stop_roi_row, start_roi_col:stop_roi_col]
+               
+                if ncc_2d(local_template, heat_roi) < 0.9:
+                    land_ind = None
     
     return land_ind
 
