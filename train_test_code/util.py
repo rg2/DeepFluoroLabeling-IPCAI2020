@@ -8,6 +8,8 @@
 import time
 import math
 
+import numpy as np
+
 import torch
 import torch.nn as nn
 
@@ -27,6 +29,64 @@ def get_gaussian_2d_heatmap(num_rows, num_cols, sigma, peak_row=None, peak_col=N
     X = X.float()
 
     return torch.exp(((X - peak_col).pow(2) + (Y - peak_row).pow(2)) / (sigma * sigma * -2)) / (2 * math.pi * sigma * sigma)
+
+def get_img_2d_max_idx(img):
+    return np.unravel_index(torch.argmax(img).item(), img.shape)
+
+def est_land_from_heat(heat,
+                       local_template=get_gaussian_2d_heatmap(25, 25, 2.5),
+                       do_multi_class=False,
+                       segs=None,
+                       seg_labels_or_mask_inds=None,
+                       get_land_loc_fn=get_img_2d_max_idx):
+    land_ind = None
+
+    if (segs is None) or (seg_labels_or_mask_inds is None):
+        land_ind = get_land_loc_fn(heat)
+    else:
+        assert((segs.shape[-1] == heat.shape[-1]) and (segs.shape[-2] == heat.shape[-2]))
+
+        if not do_multi_class:
+            assert(len(seg_labels_or_mask_inds) == 1)
+            assert(len(segs.shape) == 2)
+            tmp_heat = heat.clone().detach()
+            tmp_heat[segs != seg_labels_or_mask_inds[0]] = 0
+            
+            land_ind = get_land_loc_fn(tmp_heat)
+
+            if abs(tmp_heat[land_ind[0], land_ind[1]]) < 1.0e-6:
+                land_ind = None
+        else:
+            land_ind = get_land_loc_fn(heat)
+
+            mask_wgt = 0
+            for multi_seg_mask_idx in seg_labels_or_mask_inds:
+                mask_wgt += segs[multi_seg_mask_idx,land_ind[0],land_ind[1]]
+            
+            mask_wgt /= len(seg_labels_or_mask_inds)
+
+            if mask_wgt < 0.3:
+                land_ind = None
+    
+    if (land_ind is not None) and (local_template is not None):
+        half_rows_template = local_template.shape[0] // 2
+        half_cols_template = local_template.shape[1] // 2
+        heat_pad = torch.from_numpy(np.pad(heat.cpu().numpy(),
+                                    ((half_rows_template, half_rows_template),
+                                     (half_cols_template, half_cols_template)), 'reflect'))
+        # Since this index was first computed in the un-padded image, we do not need to subtract
+        # the padding amount to get the start location in the padded image (it implicitly has -12)
+        start_roi_row = land_ind[0]
+        stop_roi_row  = start_roi_row + (half_rows_template * 2) + 1
+        start_roi_col = land_ind[1]
+        stop_roi_col  = start_roi_col + (half_cols_template * 2) + 1
+
+        heat_roi = heat_pad[start_roi_row:stop_roi_row, start_roi_col:stop_roi_col]
+        
+        if ncc_2d(local_template, heat_roi) < 0.9:
+            land_ind = None
+    
+    return land_ind
 
 def write_floats_to_txt(file_path, floats):
     with open(file_path,'w') as out:

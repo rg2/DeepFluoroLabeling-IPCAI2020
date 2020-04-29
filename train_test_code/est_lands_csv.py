@@ -34,6 +34,8 @@ if __name__ == '__main__':
 
     parser.add_argument('--use-seg', help='Path to segmentation dataset used to assist in detection', type=str, default='')
     
+    parser.add_argument('--multi-class-seg', help='Use overlapping multiple-class segmentation', action='store_true')
+    
     parser.add_argument('--no-hdr', help='No CSV header', action='store_true')
 
     args = parser.parse_args()
@@ -48,6 +50,8 @@ if __name__ == '__main__':
     no_csv_hdr = args.no_hdr
 
     seg_ds_path = args.use_seg
+    
+    do_multi_class = args.multi_class_seg
    
     land_names = get_land_names_from_dataset(heat_file_path)
 
@@ -72,6 +76,21 @@ if __name__ == '__main__':
                                     'PIIS-l' : 1,
                                     'PIIS-r' : 2 }
 
+    multi_class_seg_masks_to_use_for_lands = { 'FH-l'   : [1,5],
+                                               'FH-r'   : [2,6],
+                                               'GSN-l'  : [1],
+                                               'GSN-r'  : [2],
+                                               'IOF-l'  : [1],
+                                               'IOF-r'  : [2],
+                                               'MOF-l'  : [1],
+                                               'MOF-r'  : [2],
+                                               'SPS-l'  : [1],
+                                               'SPS-r'  : [2],
+                                               'IPS-l'  : [1],
+                                               'IPS-r'  : [2],
+                                               'ASIS-l' : [1],
+                                               'ASIS-r' : [2] }
+
     csv_out = open(out_csv_path, 'w')
     if not no_csv_hdr:
         csv_out.write('pat,proj,land,row,col,time\n')
@@ -82,55 +101,48 @@ if __name__ == '__main__':
     segs = None
     if seg_ds_path:
         segs = torch.from_numpy(f[seg_ds_path][:])
+        
+        if do_multi_class:
+            assert(len(segs.shape) == 4)
+        else:
+            assert(len(segs.shape) == 3)
+
     f.close()
 
     landmark_local_template = get_gaussian_2d_heatmap(25, 25, 2.5)
 
     print('detecting landmark locations...')
     for i in range(heats.shape[0]):
-        for land_ind in range(num_lands):
-            seg_label_to_use = seg_labels_to_use_for_lands[land_names[land_ind]]
-
+        #print('+-----------------------------------------+')
+        for l in range(num_lands):
             start_time = time.time()
 
-            cur_heat = heats[i,land_ind,:,:]
+            cur_heat = heats[i,l,:,:]
+
+            segs_to_use = None
+            seg_labels_or_masks_to_use = None
             
-            cur_heat_pad = torch.from_numpy(np.pad(cur_heat.cpu().numpy(), ((12, 12), (12, 12)), 'reflect'))
-
-            def rule_3():
-                max_ind = None
-
-                if (segs is None) or (seg_label_to_use is None):
-                    max_ind = np.unravel_index(torch.argmax(cur_heat).item(), cur_heat.shape)
+            if segs is not None:
+                if do_multi_class:
+                    segs_to_use = segs[i,:,:,:]
+                    seg_labels_or_masks_to_use = multi_class_seg_masks_to_use_for_lands[land_names[l]]
                 else:
-                    tmp_heat = cur_heat.clone().detach()
-                    tmp_heat[segs[i,:,:] != seg_label_to_use] = -math.inf
-                    
-                    max_ind = np.unravel_index(torch.argmax(tmp_heat).item(), cur_heat.shape)
-                    if tmp_heat[max_ind[0], max_ind[1]] == -math.inf:
-                        max_ind = None
-                
-                if max_ind is not None:
-                    # Since this index was first computed in the un-padded image, we do not need to subtract
-                    # the padding amount to get the start location in the padded image (it implicitly has -12)
-                    start_roi_row = max_ind[0]
-                    start_roi_col = max_ind[1]
+                    segs_to_use = segs[i,:,:]
+                    seg_labels_or_masks_to_use = [seg_labels_to_use_for_lands[land_names[l]]]
 
-                    heat_roi = cur_heat_pad[start_roi_row:(start_roi_row+25), start_roi_col:(start_roi_col+25)]
-                    
-                    if ncc_2d(landmark_local_template, heat_roi) < 0.9:
-                        max_ind = None
-                
-                return max_ind
+            land_ind = est_land_from_heat(cur_heat,
+                                          local_template=landmark_local_template,
+                                          do_multi_class=do_multi_class,
+                                          segs=segs_to_use,
+                                          seg_labels_or_mask_inds=seg_labels_or_masks_to_use)
 
-            max_ind = rule_3()
-            if max_ind is None:
+            if land_ind is None:
                 # use -1 to indicate landmark not found
-                max_ind = [-1, -1]
+                land_ind = [-1, -1]
             
             stop_time = time.time()
 
-            csv_line = '{},{},{},{},{},{:3f}'.format(pat_ind, i, land_ind, max_ind[0], max_ind[1], stop_time - start_time)
+            csv_line = '{},{},{},{},{},{:3f}'.format(pat_ind, i, l, land_ind[0], land_ind[1], stop_time - start_time)
             csv_out.write('{}\n'.format(csv_line))
 
 
