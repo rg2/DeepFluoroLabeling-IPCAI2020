@@ -5,20 +5,36 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+from PIL import ImageFont
+
+def get_font(font_size):
+    # try and get a nice font for the overlays
+    font = None
+    try:
+        font = ImageFont.truetype("Arial.ttf", font_size)
+    except:
+        pass
+    return font
+
+def draw_text(draw_obj, s, pos, color_str='yellow', font_size=12):
+    draw_obj.text((pos[0], pos[1]), s, fill=color_str, font=get_font(font_size))
+
 def get_box(x, box_radius=2):
     return [(x[0] - box_radius, x[1] - box_radius),
             (x[0] + box_radius, x[1] + box_radius)]
 
-def draw_gt_land(draw_obj, x):
-    draw_obj.ellipse(get_box(x), fill='yellow')
+def draw_gt_land(draw_obj, x, color_str='yellow', r=2):
+    draw_obj.ellipse(get_box(x,r), fill=color_str)
 
-def draw_est_land(draw_obj, x):
-    r = 6
-    color_str = 'yellow'
-    
+def draw_circle(draw_obj, x, color_str='yellow', r=2):
+    draw_obj.ellipse(get_box(x,r), fill=None, outline=color_str)
+
+def draw_est_land(draw_obj, x, color_str='yellow', r=6):
     draw_obj.line([(x[0], x[1] + r), (x[0], x[1] - r)], fill=color_str)
     draw_obj.line([(x[0] - r, x[1]), (x[0] + r, x[1])], fill=color_str)
 
+def draw_line(draw_obj, x, y, color_str='yellow'):
+    draw_obj.line([(x[0], x[1]), (y[0], y[1])], fill=color_str)
 
 def overlay_seg(src_img, seg, alpha, is_multi_class, num_seg_classes):
     label_colors = [ [0.0, 1.0, 0.0],  # pelvis green
