@@ -47,6 +47,8 @@ if __name__ == '__main__':
     parser.add_argument('--multi-class-seg', help='Use overlapping multiple-class segmentation', action='store_true')
     
     parser.add_argument('-a', '--alpha', help='Alpha blending coefficient of non-background label overlay. 1.0 --> non-background labels are opaque, 0.0 --> non-background labels are invisible.', type=float, default=0.35)
+    
+    parser.add_argument('--mistakes', help='When overlaying GT and est. landmarks use different colors and shapes to highlight likely errors.', action='store_true')
 
     args = parser.parse_args()
 
@@ -74,9 +76,15 @@ if __name__ == '__main__':
     
     do_multi_class = args.multi_class_seg
 
+    try_mistakes = args.mistakes
+
+    land_names = None
+
     est_lands = { }
 
     if overlay_lands:
+        land_names = get_land_names_from_dataset(seg_file_path)
+
         all_est_lands = read_est_lands_from_csv(args.lands_csv)
         
         if pat_ind in all_est_lands:
@@ -115,18 +123,43 @@ if __name__ == '__main__':
             pil = TF.to_pil_image(img)
             
             draw = ImageDraw.Draw(pil)
-
+            
+            has_gt_land = None
             if not no_gt_lands:
                 cur_gt_lands = ds[proj][2]
+                
+                has_gt_land = [False for l in range(cur_gt_lands.shape[-1])]
 
                 for l in range(cur_gt_lands.shape[-1]):
                     cur_land = cur_gt_lands[:,l]
 
                     if math.isfinite(cur_land[0]) and math.isfinite(cur_land[1]):
-                        draw_gt_land(draw, cur_land)
+                        has_gt_land[l] = True
+
+                        if not try_mistakes:
+                            draw_gt_land(draw, cur_land)
+                        else:
+                            if l not in est_lands[proj]:
+                                draw_circle(draw, cur_land)
+                            else:
+                                cur_est_land = est_lands[proj][l]
+                                
+                                dx = cur_est_land[0] - cur_land[0]
+                                dy = cur_est_land[1] - cur_land[1]
+
+                                if math.sqrt((dx * dx) + (dy * dy)) < 10:
+                                    draw_gt_land(draw, cur_land)
+                                else:
+                                    draw_circle(draw, cur_land, 'black')
+                                    draw_line(draw, cur_land, cur_est_land, 'black')
             
             for (l, cur_land) in est_lands[proj].items():
-                draw_est_land(draw, cur_land)
+                if not try_mistakes:
+                    draw_est_land(draw, cur_land)
+                else:
+                    draw_est_land(draw, cur_land, 'yellow' if has_gt_land[l] else 'black')
+                    if not has_gt_land[l]:
+                        draw_text(draw, land_names[l], cur_land, color_str='black')
 
             del draw
 
