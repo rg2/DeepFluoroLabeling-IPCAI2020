@@ -15,9 +15,11 @@ import torchvision.transforms.functional as TF
 import h5py as h5
 
 from PIL import Image
+from PIL import ImageDraw
 
 from dataset import *
 from util import *
+from overlay_utils import *
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='overlay estimated heat maps for a specific projection and landmark',
@@ -36,6 +38,7 @@ if __name__ == '__main__':
     parser.add_argument('--min-max', help='Min/Max normalize each heatmap to [0,1] for display', action='store_true')
     parser.add_argument('--exp-max', help='Max scale according to the expected peak value of the 2D Gaussian', action='store_true')
     parser.add_argument('--all-max', help='Max scale using maxium from all heatmaps of projection, shift to zero using individual heatmap minima.', action='store_true')
+    parser.add_argument('--est-land', help='Estimate landmark location from heatmap and overlay', action='store_true')
 
     args = parser.parse_args()
 
@@ -59,6 +62,8 @@ if __name__ == '__main__':
     do_min_max_norm  = args.min_max
     do_exp_max       = args.exp_max
     do_all_heats_max = args.all_max
+    
+    do_est_land = args.est_land
 
     ds = get_dataset(ds_path, [pat_ind], num_classes=num_seg_classes)
         
@@ -95,6 +100,11 @@ if __name__ == '__main__':
 
             heat = est_heats[proj,land_idx,:,:]
 
+            # estimate landmark location
+            land_est = None
+            if do_est_land:
+                land_est = est_land_from_heat(heat)
+
             if do_min_max_norm:
                 heat_min = heat.min()
                 heat_max = heat.max()
@@ -117,6 +127,14 @@ if __name__ == '__main__':
 
             for c in range(3):
                 dst_img[c,:,:] = ((1 - heat) * img[c,:,:]) + (heat * heat_base_color[c])
+            
+            if land_est is not None:
+                pil = TF.to_pil_image(img)
+                draw = ImageDraw.Draw(pil)
+                draw_est_land(draw, (land_est[1], land_est[0]))
+                del draw
+
+                dst_img[:,:,:] = TF.to_tensor(pil)
         
         cur_out_img_path = out_img_path
         if all_projs:
