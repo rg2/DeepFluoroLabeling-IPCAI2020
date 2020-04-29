@@ -103,7 +103,8 @@ if __name__ == '__main__':
             # estimate landmark location
             land_est = None
             if do_est_land:
-                land_est = est_land_from_heat(heat)
+                #land_est = est_land_from_heat(heat)
+                land_est = est_land_from_heat(heat,local_template='global')
 
             if do_min_max_norm:
                 heat_min = heat.min()
@@ -129,7 +130,7 @@ if __name__ == '__main__':
                 dst_img[c,:,:] = ((1 - heat) * img[c,:,:]) + (heat * heat_base_color[c])
             
             if land_est is not None:
-                pil = TF.to_pil_image(img)
+                pil = TF.to_pil_image(dst_img)
                 draw = ImageDraw.Draw(pil)
                 draw_est_land(draw, (land_est[1], land_est[0]))
                 del draw
