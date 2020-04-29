@@ -302,11 +302,6 @@ class RandomDataAugDataSet(torch.utils.data.Dataset):
             #sigma_lut = [ 2.5, 2.5, 7.5, 7.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5]
             sigma_lut = torch.full([num_lands], 2.5)
 
-            (Y,X) = torch.meshgrid(torch.arange(0, cur_seg.shape[-2]),
-                                   torch.arange(0, cur_seg.shape[-1]))
-            Y = Y.float()
-            X = X.float()
-
             for land_idx in range(num_lands):
                 sigma = sigma_lut[land_idx]
 
@@ -316,7 +311,7 @@ class RandomDataAugDataSet(torch.utils.data.Dataset):
                 mu_y = cur_land[1]
 
                 if not math.isinf(mu_x) and not math.isinf(mu_y):
-                    pdf = torch.exp(((X - mu_x).pow(2) + (Y - mu_y).pow(2)) / (sigma * sigma * -2)) / (2 * math.pi * sigma * sigma)
+                    pdf = get_gaussian_2d_heatmap(cur_seg.shape[-2], cur_seg.shape[-1], sigma, mu_y, mu_x)
                     #pdf /= pdf.sum() # normalize to sum of 1
                     h[land_idx,0,:,:] = pdf
             #assert(torch.all(torch.isfinite(h)))
