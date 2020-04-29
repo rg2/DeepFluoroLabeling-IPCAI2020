@@ -316,8 +316,11 @@ if __name__ == '__main__':
    
     if train_valid_split < 0:
         print('initializing validation dataset')
-        valid_ds = get_dataset(data_file_path, valid_pats, num_classes=num_classes,
-                               pad_img_dim=proj_unet_dim)
+        valid_ds = get_dataset(data_file_path, valid_pats,
+                               num_classes=num_classes,
+                               pad_img_dim=proj_unet_dim,
+                               data_aug=False,
+                               multi_class_labels=do_multi_class)
     
     print('Length of validation dataset: {}'.format(len(valid_ds)))
 
