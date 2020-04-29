@@ -76,21 +76,11 @@ if __name__ == '__main__':
     est_lands = { }
 
     if overlay_lands:
-        est_lands_csv_path = args.lands_csv
-        csv_lines = open(est_lands_csv_path, 'r').readlines()[1:]
+        all_est_lands = read_est_lands_from_csv(args.lands_csv)
         
-        for csv_line in csv_lines:
-            toks = csv_line.strip().split(',')
-            if (int(toks[0]) == pat_ind) and (int(toks[1]) == proj):
-                land_row = int(toks[3])
-                land_col = int(toks[4])
-
-                if (land_row >= 0) and (land_col >= 0):
-                    est_land_idx = int(toks[2])
-
-                    assert(est_land_idx not in est_lands)
-
-                    est_lands[est_land_idx] = (land_col, land_row)
+        if pat_ind in all_est_lands:
+            if proj in all_est_lands[pat_ind]:
+                est_lands = all_est_lands[pat_ind][proj]
 
     ds = get_dataset(ds_path, [pat_ind], num_classes=num_seg_classes)
 

@@ -124,6 +124,39 @@ def est_land_from_heat(heat,
     
     return land_ind
 
+def read_est_lands_from_csv(csv_path):
+    pat_to_proj = { }
+
+    csv_lines = open(csv_path, 'r').readlines()[1:]
+    
+    for csv_line in csv_lines:
+        toks = csv_line.strip().split(',')
+        pat_ind = int(toks[0])
+        
+        if pat_ind not in pat_to_proj:
+            pat_to_proj[pat_ind] = { }
+        
+        proj_to_lands = pat_to_proj[pat_ind]
+
+        proj = int(toks[1])
+
+        if proj not in proj_to_lands:
+            proj_to_lands[proj] = { }
+
+        land_inds_to_coords = proj_to_lands[proj]
+
+        land_row = int(toks[3])
+        land_col = int(toks[4])
+
+        if (land_row >= 0) and (land_col >= 0):
+            est_land_idx = int(toks[2])
+
+            assert(est_land_idx not in land_inds_to_coords)
+
+            land_inds_to_coords[est_land_idx] = (land_col, land_row)
+    
+    return pat_to_proj
+
 def write_floats_to_txt(file_path, floats):
     with open(file_path,'w') as out:
         for f in floats:
