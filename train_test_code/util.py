@@ -33,6 +33,32 @@ def get_gaussian_2d_heatmap(num_rows, num_cols, sigma, peak_row=None, peak_col=N
 def get_img_2d_max_idx(img):
     return np.unravel_index(torch.argmax(img).item(), img.shape)
 
+def get_img_2d_exp_loc(img):
+    exp_ind = None
+
+    num_rows = img.shape[0]
+    num_cols = img.shape[1]
+
+    pdf = img.clone()
+    pdf[pdf < 0.01] = 0
+
+    norm_const = pdf.sum()
+    
+    if norm_const > 1.0e-6:
+        pdf /= norm_const
+
+        (Y,X) = torch.meshgrid(torch.arange(0,num_rows), torch.arange(0,num_cols))
+
+        Y = Y.float()
+        X = X.float()
+
+        mu_x = (X * pdf).sum().item()
+        mu_y = (Y * pdf).sum().item()
+        
+        exp_ind = (round(mu_y), round(mu_x))
+    
+    return exp_ind
+
 def est_land_from_heat(heat,
                        local_template=get_gaussian_2d_heatmap(25, 25, 2.5),
                        do_multi_class=False,
@@ -54,19 +80,20 @@ def est_land_from_heat(heat,
             
             land_ind = get_land_loc_fn(tmp_heat)
 
-            if abs(tmp_heat[land_ind[0], land_ind[1]]) < 1.0e-6:
+            if (land_ind is not None) and (abs(tmp_heat[land_ind[0], land_ind[1]]) < 1.0e-6):
                 land_ind = None
         else:
             land_ind = get_land_loc_fn(heat)
-
-            mask_wgt = 0
-            for multi_seg_mask_idx in seg_labels_or_mask_inds:
-                mask_wgt += segs[multi_seg_mask_idx,land_ind[0],land_ind[1]]
             
-            mask_wgt /= len(seg_labels_or_mask_inds)
+            if land_ind is not None:
+                mask_wgt = 0
+                for multi_seg_mask_idx in seg_labels_or_mask_inds:
+                    mask_wgt += segs[multi_seg_mask_idx,land_ind[0],land_ind[1]]
+                
+                mask_wgt /= len(seg_labels_or_mask_inds)
 
-            if mask_wgt < 0.3:
-                land_ind = None
+                if mask_wgt < 0.3:
+                    land_ind = None
     
     if (land_ind is not None) and (local_template is not None):
         half_rows_template = local_template.shape[0] // 2
