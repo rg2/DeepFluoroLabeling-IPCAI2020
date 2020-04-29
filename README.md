@@ -2,7 +2,7 @@
 ![Example Ground Truth Annotations](example_gt_labels.png)
 
 This repository contains implementation details for automatically annotating fluoroscopy of the hip.
-Higher-level information, including clinical motivations, prior works, algorithmic details, applications to 2D/3D registration, and experimental details, may be found in the IPCAI 2020 paper "Automatic Annotation of Hip Anatomy in Fluoroscopy for Robust and Efficient 2D/3D Registration," available at https://arxiv.org/abs/1911.07042.
+Higher-level information, including clinical motivations, prior works, algorithmic details, applications to 2D/3D registration, and experimental details, may be found in the IPCAI 2020 paper "Automatic Annotation of Hip Anatomy in Fluoroscopy for Robust and Efficient 2D/3D Registration," available at https://arxiv.org/abs/1911.07042 or https://doi.org/10.1007/s11548-020-02162-7.
 The primary contents of this repository are:
 - Links to the annotated dataset of *actual* hip fluoroscopy used for training/testing,
 - Documentation and examples for using the dataset,
