@@ -35,7 +35,9 @@ if __name__ == '__main__':
     parser.add_argument('--use-seg', help='Path to segmentation dataset used to assist in detection', type=str, default='')
     
     parser.add_argument('--multi-class-seg', help='Use overlapping multiple-class segmentation', action='store_true')
-    
+
+    parser.add_argument('--global-ncc', help='Use global NCC on heatmap instead of local', action='store_true')
+
     parser.add_argument('--no-hdr', help='No CSV header', action='store_true')
 
     args = parser.parse_args()
@@ -52,7 +54,9 @@ if __name__ == '__main__':
     seg_ds_path = args.use_seg
     
     do_multi_class = args.multi_class_seg
-   
+    
+    do_global_ncc = args.global_ncc
+
     land_names = get_land_names_from_dataset(heat_file_path)
 
     num_lands = len(land_names)
@@ -109,7 +113,7 @@ if __name__ == '__main__':
 
     f.close()
 
-    landmark_local_template = get_gaussian_2d_heatmap(25, 25, 2.5)
+    landmark_local_template = 'global' if do_global_ncc else get_gaussian_2d_heatmap(25, 25, 2.5)
 
     print('detecting landmark locations...')
     for i in range(heats.shape[0]):
