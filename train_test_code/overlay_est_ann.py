@@ -21,6 +21,7 @@ from PIL import Image
 from PIL import ImageDraw
 
 from dataset import *
+from overlay_utils import *
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='overlay segs',
@@ -42,6 +43,10 @@ if __name__ == '__main__':
     parser.add_argument('--lands-csv', help='path to CSV file of estimated landmark locations', type=str)
     
     parser.add_argument('--num-classes', help='number of classes in segmentation', type=int, default=7)
+    
+    parser.add_argument('--multi-class-seg', help='Use overlapping multiple-class segmentation', action='store_true')
+    
+    parser.add_argument('-a', '--alpha', help='Alpha blending coefficient of non-background label overlay. 1.0 --> non-background labels are opaque, 0.0 --> non-background labels are invisible.', type=float, default=0.35)
 
     args = parser.parse_args()
 
@@ -63,6 +68,10 @@ if __name__ == '__main__':
     no_seg = args.no_seg
 
     num_seg_classes = args.num_classes
+
+    alpha = args.alpha
+    
+    do_multi_class = args.multi_class_seg
 
     est_lands = { }
 
@@ -103,44 +112,12 @@ if __name__ == '__main__':
 
         cur_seg = segs[proj,:,:]
 
-        alpha = 0.35
-
-        label_colors = [ [0.0, 1.0, 0.0],  # pelvis green
-                         [1.0, 0.0, 0.0],  # left femur red
-                         [0.0, 0.0, 1.0],  # right femur blue
-                         [1.0, 1.0, 0.0],  # yellow
-                         [0.0, 1.0, 1.0],  # cyan
-                         [1.0, 0.5, 0.0],  # orange
-                         [0.5, 0.0, 0.5]]  # purple
-
-        for l in range(1,num_seg_classes):
-            s_idx = cur_seg == l
-            
-            label_color = label_colors[l - 1]
-            
-            for c in range(3):
-                img_c = img[c,:,:]
-
-                img_c[s_idx] = ((1 - alpha) * img_c[s_idx]) + (alpha * label_color[c])
+        img = overlay_seg(img, cur_seg, alpha, do_multi_class, num_seg_classes)
 
     if overlay_lands:
         pil = TF.to_pil_image(img)
         
         draw = ImageDraw.Draw(pil)
-
-        def get_box(x, box_radius=2):
-            return [(x[0] - box_radius, x[1] - box_radius),
-                    (x[0] + box_radius, x[1] + box_radius)]
-
-        def draw_gt_land(draw_obj, x):
-            draw_obj.ellipse(get_box(x), fill='yellow')
-        
-        def draw_est_land(draw_obj, x):
-            r = 6
-            color_str = 'yellow'
-            
-            draw_obj.line([(x[0], x[1] + r), (x[0], x[1] - r)], fill=color_str)
-            draw_obj.line([(x[0] - r, x[1]), (x[0] + r, x[1])], fill=color_str)
 
         if not no_gt_lands:
             cur_gt_lands = ds[proj][2]
