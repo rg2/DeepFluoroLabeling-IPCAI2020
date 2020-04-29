@@ -60,6 +60,7 @@ if __name__ == '__main__':
     pat_ind = args.pat_ind
 
     proj = args.proj_ind
+    all_projs = proj < 0
 
     overlay_lands = args.lands
 
@@ -79,52 +80,65 @@ if __name__ == '__main__':
         all_est_lands = read_est_lands_from_csv(args.lands_csv)
         
         if pat_ind in all_est_lands:
-            if proj in all_est_lands[pat_ind]:
-                est_lands = all_est_lands[pat_ind][proj]
+            est_lands = all_est_lands[pat_ind]
 
     ds = get_dataset(ds_path, [pat_ind], num_classes=num_seg_classes)
 
-    img = ds[proj][0]
+    projs_to_use = range(len(ds)) if all_projs else [proj]
+    
+    dst_img = None
 
-    img_min = img.min()
-    img_max = img.max()
-    img = (img - img_min) / (img_max - img_min)
+    for proj in projs_to_use:
+        print('processing projection: {:03d}...'.format(proj))
 
-    pil = TF.to_pil_image(img)
-    pil = pil.convert('RGB')
+        img = ds[proj][0]
 
-    img = TF.to_tensor(pil)
+        img_min = img.min()
+        img_max = img.max()
+        img = (img - img_min) / (img_max - img_min)
 
-    if not no_seg:
-        f = h5.File(seg_file_path, 'r')
-        segs = torch.from_numpy(f[seg_g_path][:])
-        f.close()
-
-        cur_seg = segs[proj,:,:]
-
-        img = overlay_seg(img, cur_seg, alpha, do_multi_class, num_seg_classes)
-
-    if overlay_lands:
         pil = TF.to_pil_image(img)
-        
-        draw = ImageDraw.Draw(pil)
-
-        if not no_gt_lands:
-            cur_gt_lands = ds[proj][2]
-
-            for l in range(cur_gt_lands.shape[-1]):
-                cur_land = cur_gt_lands[:,l]
-
-                if math.isfinite(cur_land[0]) and math.isfinite(cur_land[1]):
-                    draw_gt_land(draw, cur_land)
-        
-        for (l, cur_land) in est_lands.items():
-            draw_est_land(draw, cur_land)
-
-        del draw
+        pil = pil.convert('RGB')
 
         img = TF.to_tensor(pil)
 
-    torchvision.utils.save_image(img, out_img_path, normalize=False)
+        if not no_seg:
+            f = h5.File(seg_file_path, 'r')
+            segs = torch.from_numpy(f[seg_g_path][:])
+            f.close()
+
+            cur_seg = segs[proj,:,:]
+
+            img = overlay_seg(img, cur_seg, alpha, do_multi_class, num_seg_classes)
+
+        if overlay_lands:
+            pil = TF.to_pil_image(img)
+            
+            draw = ImageDraw.Draw(pil)
+
+            if not no_gt_lands:
+                cur_gt_lands = ds[proj][2]
+
+                for l in range(cur_gt_lands.shape[-1]):
+                    cur_land = cur_gt_lands[:,l]
+
+                    if math.isfinite(cur_land[0]) and math.isfinite(cur_land[1]):
+                        draw_gt_land(draw, cur_land)
+            
+            for (l, cur_land) in est_lands[proj].items():
+                draw_est_land(draw, cur_land)
+
+            del draw
+
+            img = TF.to_tensor(pil)
+    
+        if all_projs:
+            if dst_img is None:
+                dst_img = torch.zeros(len(ds), 3, img.shape[-2], img.shape[-1])
+            dst_img[proj,:,:,:] = img
+        else:
+            dst_img = img
+
+    torchvision.utils.save_image(dst_img, out_img_path, normalize=False)
 
 
