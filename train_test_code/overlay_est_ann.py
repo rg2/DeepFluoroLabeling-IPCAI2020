@@ -172,6 +172,6 @@ if __name__ == '__main__':
         else:
             dst_img = img
 
-    torchvision.utils.save_image(dst_img, out_img_path, normalize=False)
+    torchvision.utils.save_image(dst_img, out_img_path, normalize=False, nrow=12)
 
 
