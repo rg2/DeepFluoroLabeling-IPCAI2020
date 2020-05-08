@@ -86,11 +86,22 @@ def est_land_from_heat(heat,
             land_ind = get_land_loc_fn(heat)
             
             if land_ind is not None:
+                kLOCAL_OFFS = [-1, 0, 1]
+
                 mask_wgt = 0
-                for multi_seg_mask_idx in seg_labels_or_mask_inds:
-                    mask_wgt += segs[multi_seg_mask_idx,land_ind[0],land_ind[1]]
+                num_wgts = 0
                 
-                mask_wgt /= len(seg_labels_or_mask_inds)
+                for multi_seg_mask_idx in seg_labels_or_mask_inds:
+                    for local_r in kLOCAL_OFFS:
+                        cur_r = land_ind[0]+local_r
+                        if (cur_r >= 0) and (cur_r < segs.shape[1]):
+                            for local_c in kLOCAL_OFFS:
+                                cur_c = land_ind[1]+local_c
+                                if (cur_c >= 0) and (cur_c < segs.shape[2]):
+                                    mask_wgt += segs[multi_seg_mask_idx,cur_r,cur_c]
+                                    num_wgts += 1
+                
+                mask_wgt /= num_wgts
 
                 if mask_wgt < 0.3:
                     land_ind = None
