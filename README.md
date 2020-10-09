@@ -10,6 +10,8 @@ The primary contents of this repository are:
 
 The dataset consists of CT, fluoroscopy, and derived data from six lower torso cadaveric specimens.
 
+Implementations of the registration algorithms, both *offline* and *online*, are provided in the [Regi2D3D-IPCAI2020](https://github.com/rg2/Regi2D3D-IPCAI2020) repository.
+
 For any questions or feature requests, please open an issue or send an email to Rob (grupp@jhu.edu).
 
 We hope that this code and data will be useful in the development of new computer-assisted capabilities that leverage fluoroscopy.
