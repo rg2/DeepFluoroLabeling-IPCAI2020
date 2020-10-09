@@ -17,11 +17,14 @@ For any questions or feature requests, please open an issue or send an email to 
 We hope that this code and data will be useful in the development of new computer-assisted capabilities that leverage fluoroscopy.
 If you have used the code or dataset, we kindly ask that you cite our paper:
 ```
-@article{grupp2019automatic,
-  title={Automatic Annotation of Hip Anatomy in Fluoroscopy for Robust and Efficient {2D}/{3D} Registration},
-  author={Grupp, Robert and Unberath, Mathias and Gao, Cong and Hegeman, Rachel and Murphy, Ryan and Alexander, Clayton and Otake, Yoshito and McArthur, Benjamin and Armand, Mehran and Taylor, Russell},
-  journal={arXiv preprint arXiv:1911.07042},
-  year={2019}
+Grupp, Robert B., et al. "Automatic annotation of hip anatomy in fluoroscopy for robust and efficient 2D/3D registration." International Journal of Computer Assisted Radiology and Surgery (2020): 1-11.
+----------------------------------------------------------------------
+@article{grupp2020automatic,
+  title={Automatic annotation of hip anatomy in fluoroscopy for robust and efficient {2D}/{3D} registration},
+  author={Grupp, Robert B and Unberath, Mathias and Gao, Cong and Hegeman, Rachel A and Murphy, Ryan J and Alexander, Clayton P and Otake, Yoshito and McArthur, Benjamin A and Armand, Mehran and Taylor, Russell H},
+  journal={International Journal of Computer Assisted Radiology and Surgery},
+  pages={1--11},
+  publisher={Springer}
 }
 ```
 
