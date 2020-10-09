@@ -103,6 +103,7 @@ The [Readme](train_test_code/Readme.md) also provides details on the Python envi
 
 In the IPCAI 2020 companion paper, we use these annotations to perform automatic registrations of the pelvis and each femur.
 The following YouTube video shows several examples: https://youtu.be/5AwGlNkcp9o.
+Implementations of these registration strategies are provided in the [Regi2D3D-IPCAI2020](https://github.com/rg2/Regi2D3D-IPCAI2020) repository
 
 ## Licensing
 
