@@ -59,13 +59,15 @@ The 3D landmarks and bone structures are shown below:
 
 ## Datasets
 
-**_You can access the annotated dataset in full-resolution [here](http://tiny.cc/ipcai_2020_full_res_data) in HDF5 format (2.5 GB)._**
+**_You can access the annotated dataset in full-resolution [here](https://doi.org/10.7281/T1/IFSXNV/EAN9GH) in HDF5 format (2.5 GB)._**
 However, this data was preprocessed prior to training and testing of the models.
 Several preprocessed versions of the dataset, ready for training/testing are also available in HDF5 format:
-- [2x Downsampled](http://tiny.cc/ipcai_2020_ds_2x) (659 MB)
-- [4x Downsampled](http://tiny.cc/ipcai_2020_ds_4x) (165 MB)
-- [8x Downsampled](http://tiny.cc/ipcai_2020_ds_8x) (42 MB) (*This was used in the IPCAI paper*)
-- [16x Downsampled](http://tiny.cc/ipcai_2020_ds_16x) (11 MB)
+- [2x Downsampled](https://doi.org/10.7281/T1/IFSXNV/DYGPDX) (659 MB)
+- [4x Downsampled](https://doi.org/10.7281/T1/IFSXNV/SBORQA) (165 MB)
+- [8x Downsampled](https://doi.org/10.7281/T1/IFSXNV/RM0YBV) (42 MB) (*This was used in the IPCAI paper*)
+- [16x Downsampled](https://doi.org/10.7281/T1/IFSXNV/HNV0ZM) (11 MB)
+
+These files are graciously hosted by the JHU Data Archive, with a full listing of the dataset contents and metadata provided [here](https://doi.org/10.7281/T1/IFSXNV).
 
 Documentation on the organization of data within each HDF5 is found [here](hdf5_layouts/Readme.md).
 Some example code for using these files is provided in [examples_dataset](examples_dataset).
