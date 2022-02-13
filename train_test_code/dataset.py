@@ -15,6 +15,8 @@ import torch.utils.data
 
 import torchvision.transforms.functional as TF
 
+from torchvision.transforms import InterpolationMode
+
 import numpy as np
 
 import PIL
@@ -193,7 +195,7 @@ class RandomDataAugDataSet(torch.utils.data.Dataset):
                                  (trans_x, trans_y),
                                  scale_factor,
                                  (shear_x, shear_y),
-                                 resample=PIL.Image.BILINEAR))
+                                 interpolation=InterpolationMode.BILINEAR))
                 
                 if self.pad_data_for_affine:
                     # pad can be zero
