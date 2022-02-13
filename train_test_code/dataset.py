@@ -306,7 +306,8 @@ class RandomDataAugDataSet(torch.utils.data.Dataset):
             sigma_lut = torch.full([num_lands], 2.5)
 
             (Y,X) = torch.meshgrid(torch.arange(0, s.shape[-2]),
-                                   torch.arange(0, s.shape[-1]))
+                                   torch.arange(0, s.shape[-1]),
+                                   indexing='ij')
             Y = Y.float()
             X = X.float()
 

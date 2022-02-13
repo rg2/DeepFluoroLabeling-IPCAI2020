@@ -21,7 +21,9 @@ def get_gaussian_2d_heatmap(num_rows, num_cols, sigma, peak_row=None, peak_col=N
     if peak_col is None:
         peak_col = num_cols // 2
     
-    (Y,X) = torch.meshgrid(torch.arange(0,num_rows), torch.arange(0,num_cols))
+    (Y,X) = torch.meshgrid(
+        torch.arange(0,num_rows), torch.arange(0,num_cols),
+        indexing='ij')
     
     Y = Y.float()
     X = X.float()
