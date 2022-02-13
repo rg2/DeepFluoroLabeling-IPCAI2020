@@ -1,10 +1,9 @@
 # Training/Testing the Models
 
-CUDA 9.2, the Anaconda Python 3.7 distribution, and PyTorch 1.2 were used for the experiments conducted in the IPCAI 2020 companion paper.
-PyTorch was installed with the following command:
+The current master branch has been verified to work with pytorch 1.10 as of February 12, 2022. The following pip command should allow these training/testing commands to run successfully (this installs pytorch and h5py):
 ```
-conda install pytorch torchvision cudatoolkit=9.0 -c pytorch
-````
+python3 -m pip install torch torchvision torchaudio h5py
+```
 
 ## Example Commands
 
@@ -58,3 +57,10 @@ python overlay_est_heat.py ipcai_2020_ds_8x.h5 spec_1_test.h5 nn-heats 1 3 0 spe
 Notice how the network assigns more of a uniform distribution, since the landmark is not visible (min/max normalized for display):
 
 ![Est. Heatmap of Spec. 1, Proj. 3, FH-l](zz_readme_images/spec_1_proj_3_fhl_est_heat.png)
+
+## Previous Environment Used in IPCAI Paper
+CUDA 9.2, the Anaconda Python 3.7 distribution, and PyTorch 1.2 were used for the experiments conducted in the IPCAI 2020 companion paper.
+PyTorch was installed with the following command:
+```
+conda install pytorch torchvision cudatoolkit=9.0 -c pytorch
+````
