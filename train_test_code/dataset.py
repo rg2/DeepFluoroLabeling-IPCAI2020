@@ -1,6 +1,6 @@
 # Dataloading utilities from preprocessed HDF5 files.
 #
-# Copyright (C) 2019-2020 Robert Grupp (grupp@jhu.edu)
+# Copyright (C) 2019-2022 Robert Grupp (grupp@jhu.edu)
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -177,21 +177,22 @@ class RandomDataAugDataSet(torch.utils.data.Dataset):
                 rot_ang = random.uniform(-5, 5)
                 trans_x = rand_trans[0]
                 trans_y = rand_trans[1]
-                shear   = random.uniform(-2, 2)
+                shear_x = random.uniform(-1, 1)
+                shear_y = random.uniform(-1, 1)
                 
                 scale_factor = random.uniform(0.9, 1.1)
 
                 if self.print_aug_info:
                     print('Rot: {:.2f}'.format(rot_ang))
                     print('Trans X: {:.2f} , Trans Y: {:.2f}'.format(trans_x, trans_y))
-                    print('Shear: {:.2f}'.format(shear))
+                    print('Shear X: {:.2f} , Shear Y: {:.2f}'.format(shear_x, shear_y))
                     print('Scale: {:.2f}'.format(scale_factor))
 
                 p = TF.to_tensor(TF.affine(TF.to_pil_image(p),
                                  rot_ang,
                                  (trans_x, trans_y),
                                  scale_factor,
-                                 shear,
+                                 (shear_x, shear_y),
                                  resample=PIL.Image.BILINEAR))
                 
                 if self.pad_data_for_affine:
@@ -217,7 +218,7 @@ class RandomDataAugDataSet(torch.utils.data.Dataset):
                                                           rot_ang,
                                                           (trans_x, trans_y),
                                                           scale_factor,
-                                                          shear))
+                                                          (shear_x, shear_y)))
                     if self.pad_data_for_affine:
                         s = center_crop(s, orig_s_shape)
                 
@@ -227,7 +228,11 @@ class RandomDataAugDataSet(torch.utils.data.Dataset):
                     center_of_rot = ((shape_for_center_of_rot[-2] / 2.0) + 0.5,
                                      (shape_for_center_of_rot[-1] / 2.0) + 0.5)
                     
-                    A_inv = TF._get_inverse_affine_matrix(center_of_rot, rot_ang, (trans_x, trans_y), scale_factor, shear)
+                    A_inv = TF._get_inverse_affine_matrix(
+                        center_of_rot, rot_ang,
+                        (trans_x, trans_y),
+                        scale_factor,
+                        (shear_x, shear_y))
                     A = np.matrix([ [A_inv[0], A_inv[1], A_inv[2]], [A_inv[3], A_inv[4], A_inv[5]], [0,0,1]]).I
 
                     for pt_idx in range(cur_lands.shape[-1]):
@@ -331,7 +336,7 @@ def get_orig_img_shape(h5_file_path, pat_ind):
 def get_num_lands_from_dataset(h5_file_path):
     f = h5.File(h5_file_path, 'r')
     
-    num_lands = int(f['land-names/num-lands'].value)
+    num_lands = int(f['land-names/num-lands'][()])
 
     f.close()
 
@@ -340,12 +345,12 @@ def get_num_lands_from_dataset(h5_file_path):
 def get_land_names_from_dataset(h5_file_path):
     f = h5.File(h5_file_path, 'r')
     
-    num_lands = int(f['land-names/num-lands'].value)
+    num_lands = int(f['land-names/num-lands'][()])
 
     land_names = []
 
     for l in range(num_lands):
-        s = f['land-names/land-{:02d}'.format(l)].value
+        s = f['land-names/land-{:02d}'.format(l)][()]
         if (type(s) is bytes) or (type(s) is np.bytes_):
             s = s.decode()
         assert(type(s) is str)
