@@ -5,6 +5,8 @@ The current master branch has been verified to work with pytorch 1.10 as of Febr
 python3 -m pip install torch torchvision torchaudio h5py
 ```
 
+These commands may also be run in the Google Colab environment, as demonstrated by [this notebook](https://colab.research.google.com/drive/11J791sHYMwgGCyBJIzbqgmgxAAEGz8do?usp=sharing).
+
 ## Example Commands
 
 The following commands use the same parameters specified in the companion paper.
