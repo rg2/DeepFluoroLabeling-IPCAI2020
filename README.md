@@ -100,6 +100,7 @@ Original files for the CT scans and 2D fluoroscopy files are part of the dataset
 
 Python code for training and testing the models is found in [train_test_code](train_test_code).
 The [Readme](train_test_code/Readme.md) also provides details on the Python environment and example commands for training/testing and examining the data.
+Users that do not have access to a reasonably powered GPU may use this [Google Colab notebook](https://colab.research.google.com/drive/11J791sHYMwgGCyBJIzbqgmgxAAEGz8do?usp=sharing) to complete the training/testing process.
 
 ## Applications to 2D/3D Registration
 
