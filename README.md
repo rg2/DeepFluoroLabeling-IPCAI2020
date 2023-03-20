@@ -94,7 +94,7 @@ Experiments in the IPCAI paper used 8x downsampling.
 Although the intensity projections are directly downsampled in 2D, the 2D segmentations are downsampled by ray-casting against a smaller detector grid.
 Directly downsampling the full-resolution 2D segmentations should also work and may yield smoother ground truth labelings.
 
-Original files for the CT scans and 2D fluoroscopy files are part of the dataset from our [TBME paper](https://arxiv.org/abs/1903.09339), *which will be made available soon*.
+Original files for the CT scans and 2D fluoroscopy files are part of the dataset from our [TBME paper](https://arxiv.org/abs/1903.09339), and are available [here](https://doi.org/10.7281/T1/C304HZ).
 
 ## Training/Testing Code
 
