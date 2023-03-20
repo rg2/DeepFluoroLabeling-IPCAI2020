@@ -1,6 +1,6 @@
 # Training/Testing the Models
 
-The current master branch has been verified to work with pytorch 1.10 as of February 12, 2022. The following pip command should allow these training/testing commands to run successfully (this installs pytorch and h5py):
+The current master branch has been verified to work with PyTorch 2.0 as of March 19, 2023. The following pip command should allow these training/testing commands to run successfully (this installs pytorch and h5py):
 ```
 python3 -m pip install torch torchvision torchaudio h5py
 ```
