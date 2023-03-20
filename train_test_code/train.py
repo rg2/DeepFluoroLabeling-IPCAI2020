@@ -1,6 +1,6 @@
 # Trains a network.
 #
-# Copyright (C) 2019-2020 Robert Grupp (grupp@jhu.edu)
+# Copyright (C) 2019-2023 Robert Grupp (grupp@jhu.edu)
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -9,10 +9,8 @@ import argparse
 import shutil
 import os.path
 import time
-import sys
 
 import torch
-import torch.nn    as nn
 import torch.optim as optim
 
 from torch.utils.data import DataLoader
@@ -158,12 +156,7 @@ if __name__ == '__main__':
     max_hours = args.max_hours
     enforce_max_hours = max_hours > 0
 
-    cpu_dev = torch.device('cpu')
-
-    if args.no_gpu:
-        dev = cpu_dev
-    else:
-        dev = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    dev = get_device(no_gpu=args.no_gpu)
 
     train_valid_split = args.train_valid_split
 

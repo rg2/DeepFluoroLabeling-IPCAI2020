@@ -2,17 +2,14 @@
 # landmark heatmaps for each projection of a specific specimen.
 # Can use an ensemble of networks to obtain the estimates (via averaging).
 #
-# Copyright (C) 2019-2020 Robert Grupp (grupp@jhu.edu)
+# Copyright (C) 2019-2023 Robert Grupp (grupp@jhu.edu)
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import argparse
-import sys
-import os.path
 
 import torch
-import torch.nn    as nn
 
 import h5py as h5
 
@@ -50,15 +47,12 @@ if __name__ == '__main__':
     test_pats = [int(i) for i in args.pats.split(',')]
     assert(len(test_pats) > 0)
     
-    cpu_dev = torch.device('cpu')
+    dev = get_device(no_gpu=args.no_gpu)
     
     torch_map_loc = None
 
     if args.no_gpu:
-        dev = cpu_dev
         torch_map_loc = 'cpu'
-    else:
-        dev = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     nets = []
     for net_path in network_paths:

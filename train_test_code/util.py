@@ -1,6 +1,6 @@
 # General utility functions
 #
-# Copyright (C) 2019-2020 Robert Grupp (grupp@jhu.edu)
+# Copyright (C) 2019-2023 Robert Grupp (grupp@jhu.edu)
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -9,11 +9,31 @@ import time
 import math
 
 import torch
-import torch.nn as nn
 
 from torch.utils.data import DataLoader
 
 from dice import *
+
+def get_device(no_gpu=False):
+    cpu_dev = torch.device('cpu')
+
+    mps_avail = False
+    try:
+        mps_avail = torch.backends.mps.is_available()
+    except:
+        pass
+
+    if no_gpu:
+        dev = cpu_dev
+    elif torch.cuda.is_available():
+        dev = torch.device('cuda:0')
+    elif mps_avail:
+        dev = torch.device('mps')
+    else:
+        print('WARNING: Falling back to CPU backend!')
+        dev = cpu_dev
+    
+    return dev
 
 def get_gaussian_2d_heatmap(num_rows, num_cols, sigma, peak_row=None, peak_col=None):
     if peak_row is None:
